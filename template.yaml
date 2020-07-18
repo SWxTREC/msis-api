@@ -22,7 +22,7 @@ Resources:
           Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
           Properties:
             Path: /msis2
-            Method: get
+            Method: post
       Layers:
         - arn:aws:lambda:us-east-1:668099181075:layer:AWSLambda-Python38-SciPy1x:14
         - !Ref LambdaLayerMSIS2
@@ -40,7 +40,7 @@ Outputs:
   # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
   MSIS2Api:
     Description: "API Gateway endpoint URL for Prod stage for the MSIS2 function"
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/prod/"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
   MSIS2Function:
     Description: "MSIS2 Lambda Function ARN"
     Value: !GetAtt MSIS2Function.Arn

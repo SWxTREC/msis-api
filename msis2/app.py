@@ -119,39 +119,3 @@ def lambda_handler(event, context):
         'body': json.dumps(output.tolist()),
         "headers": {"Access-Control-Allow-Origin": "*"}
     }
-
-
-def main():
-    """For command line testing."""
-    # Call initialization routine only once
-    init_msis([1]*25)
-
-    # date = datetime(2001, 2, 2, 8, 3, 36)  # 8.06 hour
-    date = datetime(2001, 7, 2, 8, 3, 36)  # 8.06 hour
-
-    alt = 200
-    f107 = 146.7
-    f107a = 163.6666
-    ap = 7
-    dates = [date]
-    lons = range(-180, 185, 5)
-    lats = range(-90, 95, 5)
-    alts = [alt]
-    f107s = [f107]
-    f107as = [f107a]
-    aps = [ap]
-
-    event = {'dates': dates, 'lons': lons, 'lats': lats, 'alts': alts,
-             'f107s': f107s, 'f107as': f107as, 'aps': aps}
-    context = None
-
-    stime = time.time()
-    output = lambda_handler(event, context)
-    print("output:", output)
-    print("Returned time:", time.time()-stime)
-    # altitude_profile(date, glat, glon, plot=False)
-    # altitude_surface2(date, alt, plot=False, json=True)
-
-
-if __name__ == "__main__":
-    main()
