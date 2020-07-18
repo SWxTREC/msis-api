@@ -1,119 +1,126 @@
-# AWS
+# MSIS API
 
-This project contains source code and supporting files for a serverless application that you can deploy with the SAM CLI. It includes the following files and folders.
+Version 0.1
 
-- hello_world - Code for the application's Lambda function.
-- events - Invocation events that you can use to invoke the function.
-- tests - Unit tests for the application code. 
-- template.yaml - A template that defines the application's AWS resources.
+The [NRLMSIS](https://www.nrl.navy.mil/ssd/branches/7630/modeling-upper-atmosphere) code is developed at the Naval Research Laboratory. It is an empirical code to determine the temperature and density of species in the upper atmosphere.
 
-The application uses several AWS resources, including Lambda functions and an API Gateway API. These resources are defined in the `template.yaml` file in this project. You can update the template to add AWS resources through the same deployment process that updates your application code.
+This API receives requests of times, locations, geomagnetic activity, and other parameters and dispatches those requests to call the Fortran code and deliver the results back to the requestor. This enables easier public access to the research code and results. This API has been developed with AWS's Serverless Application Model (SAM), for details on deploying this API see the [SAM documentation](SAM_README.md)
 
-If you prefer to use an integrated development environment (IDE) to build and test your application, you can use the AWS Toolkit.  
-The AWS Toolkit is an open source plug-in for popular IDEs that uses the SAM CLI to build and deploy serverless applications on AWS. The AWS Toolkit also adds a simplified step-through debugging experience for Lambda function code. See the following links to get started.
+## Endpoints
 
-* [PyCharm](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [IntelliJ](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [VS Code](https://docs.aws.amazon.com/toolkit-for-vscode/latest/userguide/welcome.html)
-* [Visual Studio](https://docs.aws.amazon.com/toolkit-for-visual-studio/latest/user-guide/welcome.html)
+Currently, there is a single endpoint that receives the requests and computes values at all locations and levels requested. The endpoint has a limit of 10,000 calculation points in a single call.
 
-## Deploy the sample application
+- `/msis2` : POST
 
-The Serverless Application Model Command Line Interface (SAM CLI) is an extension of the AWS CLI that adds functionality for building and testing Lambda applications. It uses Docker to run your functions in an Amazon Linux environment that matches Lambda. It can also emulate your application's build environment and API.
 
-To use the SAM CLI, you need the following tools.
+## Body of request
+The body of the `POST` must contain the following:
 
-* SAM CLI - [Install the SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-install.html)
-* [Python 3 installed](https://www.python.org/downloads/)
-* Docker - [Install Docker community edition](https://hub.docker.com/search/?type=edition&offering=community)
+- `dates` : list
 
-To build and deploy your application for the first time, run the following in your shell:
+A list of date and times, the required format is `YYYY-mm-ddTHH:MM`.
 
-```bash
-sam build --use-container
-sam deploy --guided
+- `lons` : list
+
+A list of longitudes, in degrees, between -180 and 360.
+
+- `lats` : list
+
+A list of latitudes, in degrees, between -90 and 90.
+
+- `alts` : list
+
+A list of altitudes, in kilometers, above the surface.
+
+- `f107s` : list
+
+A list of F107 values, the same length as dates.
+
+- `f107as` : list
+
+A list of 81-day centered F107 values, the same length as dates.
+
+- `aps` : list
+
+A list of ap values, the same length as dates.
+
+### Optional values
+
+To test out various effects on the calculation, there are some optional switches that can be selected for the model. These switches can be selected within the API through an extra `options` list.
+
+- `options` : list
+
+A list of length 25 to control the switches that can be selected within the model, by default all options are set to `1`. The switches are defined below.
+
+1. F10.7
+2. Time independent
+3. Symmetrical annual
+4. Symmetrical semiannual
+5. Asymmetrical annual
+6. Asymmetrical semiannual
+7. Diurnal
+8. Semidiurnal
+9. Geomagnetic activity:
+    - 1.0 = Daily Ap mode
+    - -1.0 = Storm-time ap mode
+10. All UT/long effects
+11. Longitudinal
+12. UT and mixed UT/long
+13. Mixed Ap/UT/long
+14. Terdiurnal
+
+15-25 are not used in NRLMSIS 2.0.
+
+### Example body request
+
+```json
+{
+    "dates": [
+      "2018-01-01T12:00"
+    ],
+    "lons": [
+      0,
+      90,
+      180,
+      270
+    ],
+    "lats": [
+      -90,
+      -45,
+      0,
+      45,
+      90
+    ],
+    "alts": [
+      200,
+      300
+    ],
+    "f107s": [
+      146.7
+    ],
+    "f107as": [
+      163.6666
+    ],
+    "aps": [
+      7
+    ],
+    "options": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+}
 ```
 
-The first command will build the source of your application. The second command will package and deploy your application to AWS, with a series of prompts:
+## Outputs
 
-* **Stack Name**: The name of the stack to deploy to CloudFormation. This should be unique to your account and region, and a good starting point would be something matching your project name.
-* **AWS Region**: The AWS region you want to deploy your app to.
-* **Confirm changes before deploy**: If set to yes, any change sets will be shown to you before execution for manual review. If set to no, the AWS SAM CLI will automatically deploy application changes.
-* **Allow SAM CLI IAM role creation**: Many AWS SAM templates, including this example, create AWS IAM roles required for the AWS Lambda function(s) included to access AWS services. By default, these are scoped down to minimum required permissions. To deploy an AWS CloudFormation stack which creates or modified IAM roles, the `CAPABILITY_IAM` value for `capabilities` must be provided. If permission isn't provided through this prompt, to deploy this example you must explicitly pass `--capabilities CAPABILITY_IAM` to the `sam deploy` command.
-* **Save arguments to samconfig.toml**: If set to yes, your choices will be saved to a configuration file inside the project, so that in the future you can just re-run `sam deploy` without parameters to deploy changes to your application.
+The output from the API is a multi-dimensional list that corresponds to the size of the request. The shape of the returned list will be `[ndates, nlons, nlats, nalts, 11]` with the order corresponding to the input values. The final axis with shape 11 contains the output species density and temperature.
 
-You can find your API Gateway Endpoint URL in the output values displayed after deployment.
+1. Total mass density (kg/m3)
+2. N2 number density (m-3)
+3. O2 number density (m-3)
+4. O number density (m-3)
+5. He number density (m-3)
+6. H number density (m-3)
+7. Ar number density (m-3)
+8. N number density (m-3)
+9. Anomalous oxygen number density (m-3)
+10. Not used in NRLMSIS 2.0 (will contain NO in future release)
+11. Temperature at altitude (K)
 
-## Use the SAM CLI to build and test locally
-
-Build your application with the `sam build --use-container` command.
-
-```bash
-AWS$ sam build --use-container
-```
-
-The SAM CLI installs dependencies defined in `hello_world/requirements.txt`, creates a deployment package, and saves it in the `.aws-sam/build` folder.
-
-Test a single function by invoking it directly with a test event. An event is a JSON document that represents the input that the function receives from the event source. Test events are included in the `events` folder in this project.
-
-Run functions locally and invoke them with the `sam local invoke` command.
-
-```bash
-AWS$ sam local invoke HelloWorldFunction --event events/event.json
-```
-
-The SAM CLI can also emulate your application's API. Use the `sam local start-api` to run the API locally on port 3000.
-
-```bash
-AWS$ sam local start-api
-AWS$ curl http://localhost:3000/
-```
-
-The SAM CLI reads the application template to determine the API's routes and the functions that they invoke. The `Events` property on each function's definition includes the route and method for each path.
-
-```yaml
-      Events:
-        HelloWorld:
-          Type: Api
-          Properties:
-            Path: /hello
-            Method: get
-```
-
-## Add a resource to your application
-The application template uses AWS Serverless Application Model (AWS SAM) to define application resources. AWS SAM is an extension of AWS CloudFormation with a simpler syntax for configuring common serverless application resources such as functions, triggers, and APIs. For resources not included in [the SAM specification](https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md), you can use standard [AWS CloudFormation](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-template-resource-type-ref.html) resource types.
-
-## Fetch, tail, and filter Lambda function logs
-
-To simplify troubleshooting, SAM CLI has a command called `sam logs`. `sam logs` lets you fetch logs generated by your deployed Lambda function from the command line. In addition to printing the logs on the terminal, this command has several nifty features to help you quickly find the bug.
-
-`NOTE`: This command works for all AWS Lambda functions; not just the ones you deploy using SAM.
-
-```bash
-AWS$ sam logs -n HelloWorldFunction --stack-name AWS --tail
-```
-
-You can find more information and examples about filtering Lambda function logs in the [SAM CLI Documentation](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-logging.html).
-
-## Unit tests
-
-Tests are defined in the `tests` folder in this project. Use PIP to install the [pytest](https://docs.pytest.org/en/latest/) and run unit tests.
-
-```bash
-AWS$ pip install pytest pytest-mock --user
-AWS$ python -m pytest tests/ -v
-```
-
-## Cleanup
-
-To delete the sample application that you created, use the AWS CLI. Assuming you used your project name for the stack name, you can run the following:
-
-```bash
-aws cloudformation delete-stack --stack-name AWS
-```
-
-## Resources
-
-See the [AWS SAM developer guide](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/what-is-sam.html) for an introduction to SAM specification, the SAM CLI, and serverless application concepts.
-
-Next, you can use AWS Serverless Application Repository to deploy ready to use Apps that go beyond hello world samples and learn how authors developed their applications: [AWS Serverless Application Repository main page](https://aws.amazon.com/serverless/serverlessrepo/)
