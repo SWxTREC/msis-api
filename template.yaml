@@ -1,0 +1,49 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  AWS
+
+  Sample SAM Template for AWS
+
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+  Function:
+    Timeout: 3
+
+Resources:
+  MSIS2Function:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: msis2/
+      Handler: app.lambda_handler
+      Runtime: python3.8
+      Events:
+        MSIS2:
+          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+          Properties:
+            Path: /msis2
+            Method: get
+      Layers:
+        - arn:aws:lambda:us-east-1:668099181075:layer:AWSLambda-Python38-SciPy1x:14
+        - !Ref LambdaLayerMSIS2
+
+  LambdaLayerMSIS2:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: MSIS2
+      ContentUri: lambda_layers/MSIS2/
+      RetentionPolicy: Retain
+
+Outputs:
+  # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
+  # Find out more about other implicit resources you can reference within SAM
+  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
+  MSIS2Api:
+    Description: "API Gateway endpoint URL for Prod stage for the MSIS2 function"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/prod/"
+  MSIS2Function:
+    Description: "MSIS2 Lambda Function ARN"
+    Value: !GetAtt MSIS2Function.Arn
+  MSIS2FunctionIamRole:
+    Description: "Implicit IAM Role created for the MSIS2 function"
+    Value: !GetAtt MSIS2FunctionRole.Arn
