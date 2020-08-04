@@ -129,12 +129,9 @@ def lambda_handler(event, context):
     return {
         'statusCode': 200,
         'body': json.dumps(output.tolist()),
-        "headers": {"Access-Control-Allow-Origin": "*"}
+        "headers": {"Access-Control-Allow-Origin": "*",
+                    "content-type": "application/json"}
     }
-
-
-def altitude_handler(event, context):
-    pass
 
 
 def surface_handler(event, context):
@@ -162,13 +159,43 @@ def surface_handler(event, context):
 
     # Call the main loop
     output = run_msis([date], lons, lats, [altitude], [f107], [f107a], [ap])
+    # Parse down the output data to only what we need
+    # (lons, lats, species data)
+    output = output[0, :, :, 0, :]
+    features = []
+    for i in range(len(lons)):
+        lon = lons[i]
+        for j in range(len(lats)):
+            lat = lats[j]
+            poly_coords = [[lon-2.5, lat-2.5], [lon-2.5, lat+2.5],
+                           [lon+2.5, lat+2.5], [lon+2.5, lat-2.5],
+                           [lon-2.5, lat-2.5]]
+            props = {"Mass": output[i, j, 0],
+                     "N2": output[i, j, 1],
+                     "O2": output[i, j, 2],
+                     "O": output[i, j, 3],
+                     "He": output[i, j, 4],
+                     "H": output[i, j, 5],
+                     "Ar": output[i, j, 6],
+                     "N": output[i, j, 7],
+                     "AnomO": output[i, j, 8],
+                     "NO": output[i, j, 9],
+                     "Temperature": output[i, j, 10]}
+            feat = {"type": "Feature",
+                    "geometry": {"type": "Polygon",
+                                 "coordinates": poly_coords},
+                    "properties": props}
+            features.append(feat)
+
+    coll = {"type": "FeatureCollection", "features": features}
 
     # geo_output = surface_geojson(data, output)
 
     return {
         'statusCode': 200,
-        'body': json.dumps(output.tolist()),
-        "headers": {"Access-Control-Allow-Origin": "*"}
+        'body': json.dumps(coll),
+        "headers": {"Access-Control-Allow-Origin": "*",
+                    "content-type": "application/json"}
     }
 
 
@@ -206,23 +233,24 @@ def altitude_handler(event, context):
     for i in range(len(alts)):
         alt = alts[i]
 
-        props = {'Mass': output[i, 0],
-                 'N2': output[i, 1],
-                 'O2': output[i, 2],
-                 'O': output[i, 3],
-                 'He': output[i, 4],
-                 'H': output[i, 5],
-                 'Ar': output[i, 6],
-                 'N': output[i, 7],
-                 'AnomO': output[i, 8],
-                 'NO': output[i, 9],
-                 'Temperature': output[i, 10]}
+        props = {"Mass": output[i, 0],
+                 "N2": output[i, 1],
+                 "O2": output[i, 2],
+                 "O": output[i, 3],
+                 "He": output[i, 4],
+                 "H": output[i, 5],
+                 "Ar": output[i, 6],
+                 "N": output[i, 7],
+                 "AnomO": output[i, 8],
+                 "NO": output[i, 9],
+                 "Temperature": output[i, 10]}
         features[alt] = props
 
     return {
         'statusCode': 200,
-        'body': features,
-        "headers": {"Access-Control-Allow-Origin": "*"}
+        'body': json.dumps(features),
+        "headers": {"Access-Control-Allow-Origin": "*",
+                    "content-type": "application/json"}
     }
 
 
