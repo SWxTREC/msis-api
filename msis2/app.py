@@ -167,10 +167,9 @@ def surface_handler(event, context):
         lon = lons[i]
         for j in range(len(lats)):
             lat = lats[j]
-            poly_coords = [[lon-2.5, lat-2.5], [lon-2.5, lat+2.5],
-                           [lon+2.5, lat+2.5], [lon+2.5, lat-2.5],
-                           [lon-2.5, lat-2.5]]
-            props = {"Mass": output[i, j, 0],
+            props = {"Latitude": lat,
+                     "Longitude": lon,
+                     "Mass": output[i, j, 0],
                      "N2": output[i, j, 1],
                      "O2": output[i, j, 2],
                      "O": output[i, j, 3],
@@ -181,19 +180,11 @@ def surface_handler(event, context):
                      "AnomO": output[i, j, 8],
                      "NO": output[i, j, 9],
                      "Temperature": output[i, j, 10]}
-            feat = {"type": "Feature",
-                    "geometry": {"type": "Polygon",
-                                 "coordinates": poly_coords},
-                    "properties": props}
-            features.append(feat)
-
-    coll = {"type": "FeatureCollection", "features": features}
-
-    # geo_output = surface_geojson(data, output)
+            features.append(props)
 
     return {
         'statusCode': 200,
-        'body': json.dumps(coll),
+        'body': json.dumps(features),
         "headers": {"Access-Control-Allow-Origin": "*",
                     "content-type": "application/json"}
     }
