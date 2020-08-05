@@ -229,11 +229,11 @@ def altitude_handler(event, context):
     # Parse down the output data to only what we need
     # (altitude, species data)
     output = output[0, 0, 0, :, :]
-    features = {}
+    features = []
     for i in range(len(alts)):
-        alt = alts[i]
 
-        props = {"Mass": output[i, 0],
+        props = {"Altitude": alts[i],
+                 "Mass": output[i, 0],
                  "N2": output[i, 1],
                  "O2": output[i, 2],
                  "O": output[i, 3],
@@ -244,7 +244,7 @@ def altitude_handler(event, context):
                  "AnomO": output[i, 8],
                  "NO": output[i, 9],
                  "Temperature": output[i, 10]}
-        features[alt] = props
+        features.append(props)
 
     return {
         'statusCode': 200,
