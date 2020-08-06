@@ -10,11 +10,11 @@ This API receives requests of times, locations, geomagnetic activity, and other 
 
 There are three separate endpoints for calculating msis parameters.
 
-- `/msis2` : POST
+- [`/msis2`](#/msis2) : POST
   - Generic endpoint to calculate any combination of parameters
-- `/msis2/surface` : GET
+- [`/msis2/surface`](#/msis2/surface) : GET
   - Returns a gridded surface product for a specific altitude
-- `/msis2/altitude` : GET
+- [`/msis2/altitude`](#/msis2/altitude) : GET
   - Returns an altitude profile given a specific latitude and longitude
 
 ### /msis2
