@@ -61,10 +61,9 @@ Default is for all of them to be set to 1
 !                           15-25 - Not used in NRLMSIS 2.0
 """
 from datetime import datetime
-# import geojson
 import json
-import sys
 import os
+import sys
 
 import numpy as np
 
