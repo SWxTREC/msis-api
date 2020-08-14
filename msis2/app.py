@@ -71,7 +71,7 @@ import numpy as np
 CWD = os.path.dirname(os.path.realpath(__file__))
 sys.path.insert(0, os.path.join(CWD, "lib"))
 
-from msis2 import init_msis, run_msis
+from pymsis2 import gml
 
 
 def validate_event(event):
@@ -96,7 +96,6 @@ def validate_event(event):
 
 def lambda_handler(event, context):
     """Handle the incoming API event and route properly."""
-
     # Parse the incoming path and route the event properly
     if 'surface' in event['path']:
         return surface_handler(event, context)
@@ -110,21 +109,27 @@ def lambda_handler(event, context):
     validate_event(data)
 
     # Convert the dates
-    data['dates'] = [datetime.strptime(x, "%Y-%m-%dT%H:%M") for x in data['dates']]
+    data['dates'] = [datetime.strptime(x, "%Y-%m-%dT%H:%M")
+                     for x in data['dates']]
 
     # Initialize the model, default is all ones
     options = data.get("options", [1]*25)
     if len(options) != 25:
         raise ValueError("options requires a length 25 array")
-    init_msis(options)
 
     # Call the main loop
-    output = run_msis(data['dates'], data['lons'], data['lats'],
-                      data['alts'], data['f107s'], data['f107as'],
-                      data['aps'])
+    _, output = run_msis(data['dates'], data['lons'], data['lats'],
+                         data['alts'], data['f107s'], data['f107as'],
+                         data['aps'], options)
+    ndates = len(data['dates'])
+    nlons = len(data['lons'])
+    nlats = len(data['lats'])
+    nalts = len(data['alts'])
+    nspecies = 11
     return {
         'statusCode': 200,
-        'body': json.dumps(output.tolist()),
+        'body': json.dumps(output.reshape((ndates, nlons,
+                                           nlats, nalts, nspecies)).tolist()),
         "headers": {"Access-Control-Allow-Origin": "*",
                     "content-type": "application/json"}
     }
@@ -147,36 +152,32 @@ def surface_handler(event, context):
 
     if len(options) != 25:
         raise ValueError("options requires a length 25 array")
-    init_msis(options)
+    if isinstance(options, str):
+        # Extract the list input out of the string storage
+        options = json.loads(options)
 
     # Make the 5 degree x 5 degree grid (center points)
     lats = [x + 2.5 for x in range(-90, 90, 5)]
     lons = [x + 2.5 for x in range(-180, 180, 5)]
 
     # Call the main loop
-    output = run_msis([date], lons, lats, [altitude], [f107], [f107a], [ap])
-    # Parse down the output data to only what we need
-    # (lons, lats, species data)
-    output = output[0, :, :, 0, :]
-    features = []
-    for i in range(len(lons)):
-        lon = lons[i]
-        for j in range(len(lats)):
-            lat = lats[j]
-            props = {"Latitude": lat,
-                     "Longitude": lon,
-                     "Mass": output[i, j, 0],
-                     "N2": output[i, j, 1],
-                     "O2": output[i, j, 2],
-                     "O": output[i, j, 3],
-                     "He": output[i, j, 4],
-                     "H": output[i, j, 5],
-                     "Ar": output[i, j, 6],
-                     "N": output[i, j, 7],
-                     "AnomO": output[i, j, 8],
-                     "NO": output[i, j, 9],
-                     "Temperature": output[i, j, 10]}
-            features.append(props)
+    input_data, output = run_msis([date], lons, lats, [altitude],
+                                  [f107], [f107a], [ap], options)
+
+    # input data == (:, (alt, lat, lon))
+    features = {"Latitude": input_data[:, 1].tolist(),
+                "Longitude": input_data[:, 2].tolist(),
+                "Mass": output[:, 0].tolist(),
+                "N2": output[:, 1].tolist(),
+                "O2": output[:, 2].tolist(),
+                "O": output[:, 3].tolist(),
+                "He": output[:, 4].tolist(),
+                "H": output[:, 5].tolist(),
+                "Ar": output[:, 6].tolist(),
+                "N": output[:, 7].tolist(),
+                "AnomO": output[:, 8].tolist(),
+                "NO": output[:, 9].tolist(),
+                "Temperature": output[:, 10].tolist()}
 
     return {
         'statusCode': 200,
@@ -204,34 +205,26 @@ def altitude_handler(event, context):
 
     if len(options) != 25:
         raise ValueError("options requires a length 25 array")
-    init_msis(options)
 
     # Make the list of altitudes to use
     alts = [x for x in range(100, 1005, 5)]
 
     # Call the main loop
-    output = run_msis([date], [longitude], [latitude], alts, [f107], [f107a],
-                      [ap])
+    input_data, output = run_msis([date], [longitude], [latitude], alts,
+                                  [f107], [f107a], [ap], options)
 
-    # Parse down the output data to only what we need
-    # (altitude, species data)
-    output = output[0, 0, 0, :, :]
-    features = []
-    for i in range(len(alts)):
-
-        props = {"Altitude": alts[i],
-                 "Mass": output[i, 0],
-                 "N2": output[i, 1],
-                 "O2": output[i, 2],
-                 "O": output[i, 3],
-                 "He": output[i, 4],
-                 "H": output[i, 5],
-                 "Ar": output[i, 6],
-                 "N": output[i, 7],
-                 "AnomO": output[i, 8],
-                 "NO": output[i, 9],
-                 "Temperature": output[i, 10]}
-        features.append(props)
+    features = {"Altitude": input_data[:, 0].tolist(),
+                "Mass": output[:, 0].tolist(),
+                "N2": output[:, 1].tolist(),
+                "O2": output[:, 2].tolist(),
+                "O": output[:, 3].tolist(),
+                "He": output[:, 4].tolist(),
+                "H": output[:, 5].tolist(),
+                "Ar": output[:, 6].tolist(),
+                "N": output[:, 7].tolist(),
+                "AnomO": output[:, 8].tolist(),
+                "NO": output[:, 9].tolist(),
+                "Temperature": output[:, 10].tolist()}
 
     return {
         'statusCode': 200,
@@ -239,3 +232,47 @@ def altitude_handler(event, context):
         "headers": {"Access-Control-Allow-Origin": "*",
                     "content-type": "application/json"}
     }
+
+
+def run_msis(dates, lons, lats, alts, f107s, f107as, aps, options):
+    """Call MSIS looping over all possible inputs.
+
+    Parameters
+    ----------
+    dates : list of dates
+        Date and time to calculate the output at.
+    lons : list of floats
+        Longitudes to calculate the output at.
+    lats : list of floats
+        Latitudes to calculate the output at.
+    alts : list of floats
+        Altitudes to calculate the output at.
+    f107s : list of floats
+        F107 value for the given date(s).
+    f107as : list of floats
+        F107 running 100-day average for the given date(s).
+    aps : list of floats
+        Ap for the given date(s).
+    options : list of floats (length 25)
+        A list of options (switches) to the model
+    """
+    # 11 == 10 densities + 1 temperature
+    # Output density: He, O, N2, O2, Ar, Total (gm/cm3), H, N, Anomalous O
+    # Output temp: exospheric, specific altitude
+    gml.initswitch(options)
+
+    input_data = np.array([[date.timetuple().tm_yday,
+                            date.hour*3600 + date.minute*60 + date.second,
+                            alt, lat, lon, f107s[i], f107as[i]] + [aps[i]]*7
+                           for i, date in enumerate(dates) for lon in lons
+                           for lat in lats for alt in alts])
+
+    output = gml.msiscalc_gml(input_data[:, 0], input_data[:, 1],
+                              input_data[:, 2], input_data[:, 3],
+                              input_data[:, 4], input_data[:, 5],
+                              input_data[:, 6], input_data[:, 7:])
+
+    # Force to float, JSON serializer in future calls does not work
+    # with float32 output
+    # Return the altitutdes, latitudes, longitudes with the data
+    return (input_data[:, 2:5], output.astype(np.float))

@@ -150,8 +150,8 @@ http://127.0.0.1:3000/msis2/surface?date=2018-01-01T12:00&altitude=400&f107=146.
 
 #### Surface outputs
 
-The output from the API is a json array. Each row in the array contains an
-object with the following keys
+The output from the API is a json object that contains an array for each variable.
+The object contains the following variables, each with the same length output.
 
 ```json
 "Latitude": "Latitude of this point (deg)"
@@ -213,8 +213,8 @@ http://127.0.0.1:3000/msis2/altitude?date=2018-01-01T12:00&latitude=0&longitude=
 
 #### Altitude outputs
 
-The output from the API is a json array. Each row in the array contains an
-object with the following keys
+The output from the API is a json object that contains an array for each variable.
+The object contains the following variables, each with the same length output.
 
 ```json
 "Altitude": "Altitude of this point (km)"
