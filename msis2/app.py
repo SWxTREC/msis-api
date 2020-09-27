@@ -71,7 +71,7 @@ import numpy as np
 CWD = os.path.dirname(os.path.realpath(__file__))
 sys.path.insert(0, os.path.join(CWD, "lib"))
 
-from pymsis2 import gml
+from pymsis import msis2
 
 
 def validate_event(event):
@@ -117,19 +117,17 @@ def lambda_handler(event, context):
     if len(options) != 25:
         raise ValueError("options requires a length 25 array")
 
+    # 1 Ap for each date, need to make it a n x 7 array
+    aps = [[ap]*7 for ap in data['aps']]
+
     # Call the main loop
-    _, output = run_msis(data['dates'], data['lons'], data['lats'],
-                         data['alts'], data['f107s'], data['f107as'],
-                         data['aps'], options)
-    ndates = len(data['dates'])
-    nlons = len(data['lons'])
-    nlats = len(data['lats'])
-    nalts = len(data['alts'])
-    nspecies = 11
+    output = msis2.run(data['dates'], data['lons'], data['lats'],
+                       data['alts'], data['f107s'], data['f107as'],
+                       aps, options)
+
     return {
         'statusCode': 200,
-        'body': json.dumps(output.reshape((ndates, nlons,
-                                           nlats, nalts, nspecies)).tolist()),
+        'body': json.dumps(output.tolist()).replace("NaN", 'null'),
         "headers": {"Access-Control-Allow-Origin": "*",
                     "content-type": "application/json"}
     }
@@ -157,16 +155,23 @@ def surface_handler(event, context):
         options = json.loads(options)
 
     # Make the 5 degree x 5 degree grid (center points)
-    lats = [x + 2.5 for x in range(-90, 90, 5)]
-    lons = [x + 2.5 for x in range(-180, 180, 5)]
+    lats = np.arange(-90, 95, 5)
+    lons = np.arange(-180, 185, 5)
+    aps = [[ap]*7]
 
     # Call the main loop
-    input_data, output = run_msis([date], lons, lats, [altitude],
-                                  [f107], [f107a], [ap], options)
+    input_data, output = run_msis(date, lons, lats, altitude,
+                                  f107, f107a, aps, options)
 
-    # input data == (:, (alt, lat, lon))
+    # input_data has longitudes going from 0-360, but we
+    # want to return -180, 180 for the surface plot
+    # Longitude is the slowest varying dimension, so just
+    # subtract 360 from the beginning entries
+    input_data[:(len(lons)//2)*len(lats), 0] -= 360
+
+    # input data == (:, (lon, lat, alt))
     features = {"Latitude": input_data[:, 1].tolist(),
-                "Longitude": input_data[:, 2].tolist(),
+                "Longitude": input_data[:, 0].tolist(),
                 "Mass": output[:, 0].tolist(),
                 "N2": output[:, 1].tolist(),
                 "O2": output[:, 2].tolist(),
@@ -181,7 +186,7 @@ def surface_handler(event, context):
 
     return {
         'statusCode': 200,
-        'body': json.dumps(features),
+        'body': json.dumps(features).replace("NaN", 'null'),
         "headers": {"Access-Control-Allow-Origin": "*",
                     "content-type": "application/json"}
     }
@@ -207,13 +212,14 @@ def altitude_handler(event, context):
         raise ValueError("options requires a length 25 array")
 
     # Make the list of altitudes to use
-    alts = [x for x in range(100, 1005, 5)]
+    alts = np.arange(0, 1005, 5)
+    aps = [[ap]*7]
 
     # Call the main loop
-    input_data, output = run_msis([date], [longitude], [latitude], alts,
-                                  [f107], [f107a], [ap], options)
+    input_data, output = run_msis(date, longitude, latitude, alts,
+                                  f107, f107a, aps, options)
 
-    features = {"Altitude": input_data[:, 0].tolist(),
+    features = {"Altitude": input_data[:, 2].tolist(),
                 "Mass": output[:, 0].tolist(),
                 "N2": output[:, 1].tolist(),
                 "O2": output[:, 2].tolist(),
@@ -228,7 +234,7 @@ def altitude_handler(event, context):
 
     return {
         'statusCode': 200,
-        'body': json.dumps(features),
+        'body': json.dumps(features).replace("NaN", 'null'),
         "headers": {"Access-Control-Allow-Origin": "*",
                     "content-type": "application/json"}
     }
@@ -259,20 +265,13 @@ def run_msis(dates, lons, lats, alts, f107s, f107as, aps, options):
     # 11 == 10 densities + 1 temperature
     # Output density: He, O, N2, O2, Ar, Total (gm/cm3), H, N, Anomalous O
     # Output temp: exospheric, specific altitude
-    gml.initswitch(options)
 
-    input_data = np.array([[date.timetuple().tm_yday,
-                            date.hour*3600 + date.minute*60 + date.second,
-                            alt, lat, lon, f107s[i], f107as[i]] + [aps[i]]*7
-                           for i, date in enumerate(dates) for lon in lons
-                           for lat in lats for alt in alts])
+    _, input_data = msis2.create_input(dates, lons, lats, alts,
+                                       f107s, f107as, aps)
 
-    output = gml.msiscalc_gml(input_data[:, 0], input_data[:, 1],
-                              input_data[:, 2], input_data[:, 3],
-                              input_data[:, 4], input_data[:, 5],
-                              input_data[:, 6], input_data[:, 7:])
+    output = msis2.run(dates, lons, lats, alts, f107s, f107as, aps, options)
 
     # Force to float, JSON serializer in future calls does not work
     # with float32 output
     # Return the altitutdes, latitudes, longitudes with the data
-    return (input_data[:, 2:5], output.astype(np.float))
+    return (input_data[:, 2:5], output.reshape(-1, 11).astype(np.float))

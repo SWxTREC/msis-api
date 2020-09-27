@@ -35,13 +35,13 @@ Resources:
             Method: get
       Layers:
         - arn:aws:lambda:us-east-1:668099181075:layer:AWSLambda-Python38-SciPy1x:14
-        - !Ref LambdaLayerMSIS2
+        - !Ref LambdaLayerpymsis
 
-  LambdaLayerMSIS2:
+  LambdaLayerpymsis:
     Type: AWS::Serverless::LayerVersion
     Properties:
-      LayerName: MSIS2
-      ContentUri: lambda_layers/MSIS2/
+      LayerName: pymsis
+      ContentUri: lambda_layers/pymsis/
       RetentionPolicy: Retain
 
 Outputs:
