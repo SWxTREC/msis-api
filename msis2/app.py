@@ -135,8 +135,8 @@ def lambda_handler(event, context):
 
 def parse_ap(param):
     if isinstance(param, str):
-        param = [[float(x) for x in json.loads(param)]]
-    elif isinstance(param, list):
+        param = json.loads(param)
+    if isinstance(param, list):
         param = [[float(x) for x in param]]
     else:
         param = [[float(param)]*7]
