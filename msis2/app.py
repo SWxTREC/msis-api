@@ -1,4 +1,4 @@
-"""MSIS2 API
+"""MSIS API
 
 Inputs to the Fortran subroutine
 C        IYD - YEAR AND DAY AS YYDDD (day of year from 1 to 365 (or 366))
@@ -71,7 +71,7 @@ import numpy as np
 CWD = os.path.dirname(os.path.realpath(__file__))
 sys.path.insert(0, os.path.join(CWD, "lib"))
 
-from pymsis import msis2
+from pymsis import msis
 
 
 def validate_event(event):
@@ -121,9 +121,9 @@ def lambda_handler(event, context):
     aps = [[ap]*7 for ap in data['aps']]
 
     # Call the main loop
-    output = msis2.run(data['dates'], data['lons'], data['lats'],
-                       data['alts'], data['f107s'], data['f107as'],
-                       aps, options)
+    output = msis.run(data['dates'], data['lons'], data['lats'],
+                      data['alts'], data['f107s'], data['f107as'],
+                      aps, options)
 
     return {
         'statusCode': 200,
@@ -131,6 +131,16 @@ def lambda_handler(event, context):
         "headers": {"Access-Control-Allow-Origin": "*",
                     "content-type": "application/json"}
     }
+
+
+def parse_ap(param):
+    if isinstance(param, str):
+        param = [[float(x) for x in json.loads(param)]]
+    elif isinstance(param, list):
+        param = [[float(x) for x in param]]
+    else:
+        param = [[float(param)]*7]
+    return param
 
 
 def surface_handler(event, context):
@@ -141,7 +151,7 @@ def surface_handler(event, context):
     altitude = float(params['altitude'])
     f107 = float(params['f107'])
     f107a = float(params['f107a'])
-    ap = float(params['ap'])
+    aps = parse_ap(params['ap'])
     # Initialize the model, default is all ones
     options = params.get('options', [1]*25)
     if isinstance(options, str):
@@ -157,7 +167,6 @@ def surface_handler(event, context):
     # Make the 5 degree x 5 degree grid (center points)
     lats = np.arange(-90, 95, 5)
     lons = np.arange(-180, 185, 5)
-    aps = [[ap]*7]
 
     # Call the main loop
     input_data, output = run_msis(date, lons, lats, altitude,
@@ -201,7 +210,7 @@ def altitude_handler(event, context):
     latitude = float(params['longitude'])
     f107 = float(params['f107'])
     f107a = float(params['f107a'])
-    ap = float(params['ap'])
+    aps = parse_ap(params['ap'])
     # Initialize the model, default is all ones
     options = params.get('options', [1]*25)
     if isinstance(options, str):
@@ -213,7 +222,6 @@ def altitude_handler(event, context):
 
     # Make the list of altitudes to use
     alts = np.arange(0, 1005, 5)
-    aps = [[ap]*7]
 
     # Call the main loop
     input_data, output = run_msis(date, longitude, latitude, alts,
@@ -266,10 +274,10 @@ def run_msis(dates, lons, lats, alts, f107s, f107as, aps, options):
     # Output density: He, O, N2, O2, Ar, Total (gm/cm3), H, N, Anomalous O
     # Output temp: exospheric, specific altitude
 
-    _, input_data = msis2.create_input(dates, lons, lats, alts,
+    _, input_data = msis.create_input(dates, lons, lats, alts,
                                        f107s, f107as, aps)
 
-    output = msis2.run(dates, lons, lats, alts, f107s, f107as, aps, options)
+    output = msis.run(dates, lons, lats, alts, f107s, f107as, aps, options)
 
     # Force to float, JSON serializer in future calls does not work
     # with float32 output
