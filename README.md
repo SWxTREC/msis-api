@@ -2,7 +2,7 @@
 
 Version 0.1
 
-The [NRLMSIS](https://www.nrl.navy.mil/ssd/branches/7630/modeling-upper-atmosphere) code is developed at the Naval Research Laboratory. It is an empirical code to determine the temperature and density of species in the upper atmosphere.
+The [NRLMSIS](https://www.nrl.navy.mil/Our-Work/Areas-of-Research/Space-Science/) code is developed at the Naval Research Laboratory. It is an empirical code to determine the temperature and density of species in the upper atmosphere.
 
 This API receives requests of times, locations, geomagnetic activity, and other parameters and dispatches those requests to call the Fortran code and deliver the results back to the requestor. This enables easier public access to the research code and results. This API has been developed with AWS's Serverless Application Model (SAM), for details on deploying this API see the [SAM documentation](SAM_README.md)
 
