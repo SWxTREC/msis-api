@@ -16,7 +16,7 @@ Resources:
     Properties:
       CodeUri: msis2/
       Handler: app.lambda_handler
-      Runtime: python3.8
+      Runtime: python3.9
       Events:
         MSIS2:
           Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
@@ -35,14 +35,6 @@ Resources:
             Method: get
       Layers:
         - arn:aws:lambda:us-east-1:668099181075:layer:AWSLambda-Python38-SciPy1x:14
-        - !Ref LambdaLayerpymsis
-
-  LambdaLayerpymsis:
-    Type: AWS::Serverless::LayerVersion
-    Properties:
-      LayerName: pymsis
-      ContentUri: lambda_layers/pymsis/
-      RetentionPolicy: Retain
 
 Outputs:
   # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
