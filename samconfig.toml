@@ -3,8 +3,9 @@ version = 0.1
 [default.deploy]
 [default.deploy.parameters]
 stack_name = "msis2-app"
-s3_bucket = "aws-sam-cli-managed-default-samclisourcebucket-itjm22caen72"
+s3_bucket = "aws-sam-cli-managed-default-samclisourcebucket-5hvt6pu3b78y"
 s3_prefix = "msis2-app"
-region = "us-east-1"
+region = "us-west-2"
 capabilities = "CAPABILITY_IAM"
+image_repositories = []
 
