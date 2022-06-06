@@ -11,38 +11,41 @@ Globals:
     Timeout: 3
 
 Resources:
+  MSIS2Api:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: dev
+      Domain:
+        DomainName: msis-api.dev.swx-trec.com
+        CertificateArn: !ImportValue accountCertificateArn
+        Route53:
+          HostedZoneName: "dev.swx-trec.com."
+
   MSIS2Function:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
     Properties:
       CodeUri: msis2/
       Handler: app.lambda_handler
-      Runtime: python3.8
+      Runtime: python3.9
       Events:
         MSIS2:
           Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
           Properties:
             Path: /msis2
             Method: post
+            RestApiId: !Ref MSIS2Api
         MSIS2surface:
           Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
           Properties:
             Path: /msis2/surface
             Method: get
+            RestApiId: !Ref MSIS2Api
         MSIS2altitude:
           Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
           Properties:
             Path: /msis2/altitude
             Method: get
-      Layers:
-        - arn:aws:lambda:us-east-1:668099181075:layer:AWSLambda-Python38-SciPy1x:14
-        - !Ref LambdaLayerpymsis
-
-  LambdaLayerpymsis:
-    Type: AWS::Serverless::LayerVersion
-    Properties:
-      LayerName: pymsis
-      ContentUri: lambda_layers/pymsis/
-      RetentionPolicy: Retain
+            RestApiId: !Ref MSIS2Api
 
 Outputs:
   # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
@@ -50,7 +53,7 @@ Outputs:
   # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
   MSIS2Api:
     Description: "API Gateway endpoint URL for Prod stage for the MSIS2 function"
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
+    Value: "https://msis-api.dev.swx-trec.com/"
   MSIS2Function:
     Description: "MSIS2 Lambda Function ARN"
     Value: !GetAtt MSIS2Function.Arn
